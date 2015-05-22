@@ -1,0 +1,231 @@
+
+<h1 id="forum-server">Forum Server</h1>
+
+<hr>
+
+<p>[This paper is to be accompanied with the project that I have started working on as a Implementation project for Application Security course as a graduate student at NYU School of Engineering. The code can be found on my github page: <a href="https://github.com/sayaliupasani1/forum-server">https://github.com/sayaliupasani1/forum-server</a> ]</p>
+
+<hr>
+
+<p><div class="toc">
+<ul>
+<li><a href="#forum-server">Forum Server</a><ul>
+<li><a href="#tornado-web-framework">Tornado (Web Framework)</a></li>
+<li><a href="#executing-the-code">Executing the code</a><ul>
+<li><ul>
+<li><a href="#creating-a-database"> Creating a Database</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#working">Working</a><ul>
+<li><a href="#key-process-of-the-application">Key Process Of the Application</a><ul>
+<li><a href="#main-function">Main Function:</a></li>
+</ul>
+</li>
+<li><a href="#callbacks">Callbacks:</a><ul>
+<li><a href="#loginhandler">LoginHandler:</a></li>
+<li><a href="#forumhandler">ForumHandler:</a></li>
+<li><a href="#uploadhandler">UploadHandler:</a></li>
+<li><a href="#downloadhandler">DownloadHandler:</a></li>
+<li><a href="#database-query">Database Query:</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#vulnerabilities">Vulnerabilities</a><ul>
+<li><ul>
+<li><a href="#sql-injection">Sql- Injection:</a></li>
+<li><a href="#mitm">MITM:</a></li>
+<li><a href="#malicious-file-upload">Malicious File Upload:</a></li>
+<li><a href="#plain-text-authentication">Plain Text Authentication:</a></li>
+<li><a href="#database-in-open-location">Database in open location:</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</p>
+
+<h2 id="tornado-web-framework">Tornado (Web Framework)</h2>
+
+<p><strong>Tornado</strong> is a web framework and an asynchronous networking library. I selected tornado as a framework instead of working with pythonâ€™s native base http server because python natively doesnâ€™t support asynchronous or concurrent I/O due to which python wonâ€™t be able to serve simultaneous requests. Though at this point there will not be many simultaneous connections, but I thought it is a good opportunity to make this forum scalable and expandable with improvements since I havenâ€™t seen any â€˜Forum-Serverâ€™ type implementation based on Tornado Framework</p>
+
+<blockquote>
+  <p><strong>Note:</strong></p>
+  
+  <ul>
+  <li>The forum server is in its native/ basic development stages. It does not perform any sanity tests.</li>
+  <li>It has many security loopholes and is definitely not ready for production stage.</li>
+  </ul>
+</blockquote>
+
+<hr>
+
+
+
+<h2 id="executing-the-code"><i class="icon-cog"></i>Executing the code</h2>
+
+<p>This app uses sqlite3 and Python code currently does not support creating the database. This needs to be done manually before starting the forum-server app.  </p>
+
+<h4 id="creating-a-database"><i class="icon-edit"></i> Creating a Database</h4>
+
+<ul>
+<li>To create a database, run the following command:</li>
+</ul>
+
+
+
+<pre class="prettyprint"><code class=" hljs avrasm">sqlite3 test<span class="hljs-preprocessor">.db</span></code></pre>
+
+<ul>
+<li>Create a table for Authentication purpose</li>
+</ul>
+
+
+
+<pre class="prettyprint"><code class=" hljs sql"><span class="hljs-operator"><span class="hljs-keyword">CREATE</span> <span class="hljs-keyword">TABLE</span> test.AUTH(
+&gt; ID <span class="hljs-keyword">INT</span> <span class="hljs-keyword">PRIMARY</span> <span class="hljs-keyword">KEY</span>
+&gt; USERNAME TEXT
+&gt; PASSWORD TEXT
+&gt; EMAIL TEXT);</span></code></pre>
+
+<blockquote>
+  <p>Note the security vulnerability here: I am storing the password in a plain text format. Also in the code, I am not hashing (+salting) or encrypting it. </p>
+</blockquote>
+
+<ul>
+<li>Add some user information:</li>
+</ul>
+
+
+
+<pre class="prettyprint"><code class=" hljs sql"><span class="hljs-operator"><span class="hljs-keyword">INSERT</span> <span class="hljs-keyword">INTO</span> AUTH (ID, USERNAME, PASSWORD, EMAIL)
+&gt; <span class="hljs-keyword">VALUES</span> (<span class="hljs-number">1</span>, smu222, <span class="hljs-string">'sayali'</span>, <span class="hljs-string">'smu222@nyu.edu'</span>)</span></code></pre>
+
+<blockquote>
+  <p>I am not creating a user registration page so letâ€™s create two users for our test purposes</p>
+</blockquote>
+
+<ul>
+<li>Create a table to store forum posts</li>
+</ul>
+
+
+
+<pre class="prettyprint"><code class=" hljs sql"><span class="hljs-operator"><span class="hljs-keyword">CREATE</span> <span class="hljs-keyword">TABLE</span> test.FORUM(
+&gt; ID <span class="hljs-keyword">INT</span> <span class="hljs-keyword">PRIMARY</span> <span class="hljs-keyword">KEY</span>,
+&gt; USERNAME TEXT,
+&gt; POST TEXT,
+&gt; POST_TYPE TEXT,
+&gt; <span class="hljs-keyword">TIME</span> TEXT );</span>
+
+.quit</code></pre>
+
+<blockquote>
+  <p>Currently I am not using post_type, but later when I develop this app further, it will basically show which is a parent post and which is a child post. Child post will bear the name or parent post in â€˜post_typeâ€™ and if the post is a parent post then it will hold a string â€˜parentâ€™.</p>
+</blockquote>
+
+<ul>
+<li>Run the server: <br>
+To run the server, type <code>' python forum_server.py --port=8888 '</code> <br>
+Now go to <code>'localhost:8888'</code> in your webbrowser</li>
+</ul>
+
+
+
+<h2 id="working"><i class="icon-cog"></i>Working</h2>
+
+
+
+<h3 id="key-process-of-the-application">Key Process Of the Application</h3>
+
+
+
+<h4 id="main-function">Main Function:</h4>
+
+<p>As soon as the python code is executed, the main function is called. The main function has some boiler plate to start the IO Loop of tornado framework. Python tornado has a <code>options</code> class which creates a global namespace of any argument that is passed as command line. So that is where the custom port specified during run time is accepted by the IOLoop.</p>
+
+<p>Once the loop begins, it creates an instance of <code>Application</code> class and any communication on the port, creates a new instance and is handled by various callbacks.</p>
+
+<h3 id="callbacks"><strong>Callbacks:</strong></h3>
+
+<p>Python tornado works on callbacks so that IO operations are performed in a  non-blocking mode. This means that if there is any request on the port, the IOloop handles that and based on the type of request, it is sent to its callback method which does any computationally intensive work (such as dealing with db ) in the backend without blocking the main loop. Once the operation is completed, the IOloop pushes the result on the webpage. Thus, for example, when you browse to <code>localhost:8888/login</code> the <code>login</code> request will be handled by <code>LoginHandler</code> method (in a callback mode). So for each page/ request a separate callback method is defined.</p>
+
+<h4 id="loginhandler"><strong>LoginHandler:</strong></h4>
+
+<p>The interesting part in this application is that the person who has logged in should be able to post, view post and upload/ Download the files. This means that there needs to be a token/ cookie generated which is carried and verified everytime a user (authenticated/ non-authenticated) requests the pages/ methods.  <br>
+To handle this, I have created a <code>BaseHandler</code> class (which is then inherited by all the other classes). The only method that this class has is to get a secure cookie for that particular user. If the user is not authenticated, the <code>get_secure_cookie</code> method will generate a cookie for such users. </p>
+
+<blockquote>
+  <p>The advantage is that for future, if there is a DoS attack or a bot trying to brute-force, then we can block the IP from which we are receiving such attacks</p>
+</blockquote>
+
+<p>The authenticated user should be able to visit the forum page and upload/ download files page without having to authenticate everytime, for this we use Tornadoâ€™s built-in decorator <code>tornado.web.authenticated</code>. This decorator keeps tab on the authenticated users and gives them access to the restricted pages. <br>
+Once the user passes the login id and password (which is currently accepted in plain-text format), the username and password is obtained from the html page using <code>get_argument</code> method and is verified against the database for authentication. If the authentication fails, I keep a tab on number of times it failed (and later implement a way to block the IP or user or redirect them to a blank html page for a certain time). Once logged in, user is redirected to a home page which indexes the services the user can enjoy (Forum and File upload, download) and an option to Logout.</p>
+
+
+
+<h4 id="forumhandler"><strong>ForumHandler:</strong></h4>
+
+<p>As the name suggests, this class is responsible for all the Forum related activities. As soon as the person requests this page, they are returned with all the posts in the database (without caring for post_type for now) and an option to write a new post (it creates a hyperlink but currently it doesnâ€™t redirect anywhere. After a complete implementation, it will redirect to a page with all its child posts in a communication like format). Once the user posts a new post, it is entered in the database along with the name of the user who posted the post and the time when it was posted. Once this process is done, user is redirected to the same webpage with updated database and output.</p>
+
+
+
+<h4 id="uploadhandler"><strong>UploadHandler:</strong></h4>
+
+<p>This class deals with handling the File Upload and Download </p>
+
+<blockquote>
+  <p>Currently the files uploaded by any user is available to all the users in the database. Soon this will be changed based on the preference of user to keep a file personal or public.</p>
+</blockquote>
+
+<p>When the person requests this page, he/ she will be presented with an option to upload the file or download the files that exist on the server.  <br>
+There might be a problem when the person uploads a file with the same name as the one that exists on the server. In this case the server by default will overwrite the previous file with the new one. To prevent this all the files are prefixed with random ASCII string. </p>
+
+
+
+<h4 id="downloadhandler"><strong>DownloadHandler:</strong></h4>
+
+<p>When the person requests a file to be downloaded, the <code>get</code> method of this class will grab the filename and prepare it to be pushed to the user as a file to be downloaded. </p>
+
+<h4 id="database-query">Database Query:</h4>
+
+<p><strong><code>'def _execute(query)'</code></strong>: <br>
+This function deals with executing any <code>'query'</code> that it receives as a sqlite3 query formatted string. If query is not successfully executed, it prints out the error on the console and on the web page.</p>
+
+<h2 id="vulnerabilities">Vulnerabilities</h2>
+
+<p>As mentioned in the beginning of the documentation, this app has lots of security vulnerabilities right now and is not fit for deploying in production. Some of the vulnerabilities worth pointing out are:</p>
+
+<h4 id="sql-injection">Sql- Injection:</h4>
+
+<p>As evident from the current version of the code, the app is very much prone to any type of sql injection. A very basic sql query in the post can expose the entire table(s). <br>
+<strong>Prevention:</strong> To prevent, the post that is posted will be sanitized before putting it in the database. The level of access to the database and its tables will be changed.</p>
+
+<h4 id="mitm">MITM:</h4>
+
+<p>This version of forum-server does not implement any certificate and thus does not use any ssl methods. <br>
+<strong>Prevention:</strong> In later versions, the forum-server will use TLS over HTTP. but currently any sniffing in the network can reveal the passwords/ posts etc.</p>
+
+<h4 id="malicious-file-upload">Malicious File Upload:</h4>
+
+<p>Currently the app does not scan the files for any malicious code. If a malicious code is uploaded to the server, it can not be stopped from execution (natively by the app). A simple malicious file with a bash script containing a command like <code>ls</code> and some <code>cat</code> commands can reveal a lot about the contents of webserver and about its structure. <br>
+<strong>Prevention:</strong> Some security mechanism to scan the files will be implemented. Some restrictions on the type of the files (based on extension) can also be implemented.</p>
+
+<h4 id="plain-text-authentication">Plain Text Authentication:</h4>
+
+<p>The passwords stored in the database is not encrypted/ hashed. The current implementation of authentication is impractical for production environment.  <br>
+**Prevention:**Soon, this method will be replaced with a method that performs hash and salting before storing the password and authentication will be based on hashing and salting the user input and checking against the database</p>
+
+<h4 id="database-in-open-location">Database in open location:</h4>
+
+<p>Currently the app has the database in the same location as the web serverâ€™s hosted files. This, again, is not an acceptable way of deploying the forum-server. <br>
+<strong>Prevention:</strong> Soon the database will be moved to a root folderâ€™s some path which is not accessible by the current user that started the forum-server. The database needs to have access restrictions as well as read/write privileged restriction.</p>
+
+<p>There are few more vulnerabilities but it will be fixed before a RC version is released by me.</p>
+
+<p>-Sayali Upasani</p>
