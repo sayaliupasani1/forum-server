@@ -4,6 +4,8 @@ Forum Server
 This app has been written for personal testing.
 An actual forum server will be posted soon.
 
+### To view more information about how the forum-server works, refer forum-server-help.html
+
 #### This server provides following features:
 * Dummy Forum Posts (Clikcin it doesn't take you anywhere)
 * Posts and Auth stored in DB (same DB. Security Vulnerability)
